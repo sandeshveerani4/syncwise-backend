@@ -1,6 +1,7 @@
 from langchain.chat_models import init_chat_model
 from langchain.prompts import ChatPromptTemplate,MessagesPlaceholder
-from tools import get_tools,ApiKeys
+from tools import get_tools
+from models import ApiKeys
 from models import Project
 # from langchain_openai import ChatOpenAI
 from datetime import datetime,timezone

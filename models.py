@@ -1,5 +1,8 @@
 from sqlalchemy import Column, String,JSON,ARRAY,DateTime
 from sqlalchemy.ext.declarative import declarative_base
+from pydantic import BaseModel
+from typing import Optional,Dict
+
 Base  = declarative_base()
 
 class ChatToken(Base):
@@ -42,3 +45,13 @@ class Meeting(Base):
     bot_id=Column(String,nullable=True)
     bot_data=Column(JSON)
     tasks=Column(ARRAY(JSON),default=[])
+
+class ApiKeys(BaseModel):
+    user_id:str=None
+    project_id:str=None
+    JIRA_API_TOKEN: Optional[str]=None
+    JIRA_USERNAME:Optional[str]=None
+    JIRA_INSTANCE_URL:Optional[str]=None
+    GITHUB_REPOSITORY:Optional[str]=None
+    SLACK_USER_TOKEN:Optional[str]=None
+    CALENDAR_TOKEN:Dict[str,str]=None

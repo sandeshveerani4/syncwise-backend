@@ -7,21 +7,10 @@ from langchain_google_community.calendar.utils import (
     build_resource_service,
 )
 from slack_sdk import WebClient
-from pydantic import BaseModel
-from typing import Optional,Dict
 from utils import get_google_credentials
 from calendar_tool import CalendarToolkit
 from meeting_retriever import _retrieve_or_list_meetings
-from langchain.tools import Tool
-class ApiKeys(BaseModel):
-    user_id:str=None
-    project_id:str=None
-    JIRA_API_TOKEN: Optional[str]=None
-    JIRA_USERNAME:Optional[str]=None
-    JIRA_INSTANCE_URL:Optional[str]=None
-    GITHUB_REPOSITORY:Optional[str]=None
-    SLACK_USER_TOKEN:Optional[str]=None
-    CALENDAR_TOKEN:Dict[str,str]=None
+from models import ApiKeys
 
 def get_tools(api_keys:ApiKeys):
     tools=[]

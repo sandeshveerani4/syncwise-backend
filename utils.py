@@ -8,8 +8,16 @@ from langchain_core.utils import guard_import
 import time
 from sqlalchemy.orm import Session
 from models import User,Project,ApiKey
-from tools import ApiKeys
+from models import ApiKeys
+from pinecone import Pinecone
+from langchain_openai import OpenAIEmbeddings
+
 import json
+
+embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+
+pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
+
 def import_google() -> Tuple[Request, Credentials]:
     """Import google libraries.
 

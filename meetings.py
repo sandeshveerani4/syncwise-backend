@@ -1,19 +1,14 @@
 import os
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
-from langchain_openai import OpenAIEmbeddings
 from pydantic import BaseModel
-from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
 from utils import pinecone_check_index
 from llm import Llm
 from langchain_community.agent_toolkits.jira.toolkit import JiraToolkit
 from langchain_community.utilities.jira import JiraAPIWrapper
 from database import SessionLocal
-from utils import get_api_keys
-embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
-
-pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
+from utils import get_api_keys,embeddings,pc
 
 class Item(BaseModel):
     user_id: str

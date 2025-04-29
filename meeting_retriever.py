@@ -1,5 +1,4 @@
-from meetings import pc,embeddings
-from utils import pinecone_check_index
+from utils import pinecone_check_index,pc,embeddings
 import os
 from typing import Optional
 from database import SessionLocal
