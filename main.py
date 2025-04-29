@@ -126,7 +126,7 @@ async def add_meeting_transcript(payload:WebhookPayload,background_tasks: Backgr
         final_captions=""
         if len(transcript)>0:
             for chunk in transcript:
-                print(chunk)
-                final_captions+= f"[{chunk['speaker_name']}]: {chunk['transcription']}\n"
+                if chunk['transcription']['transcript']:
+                    final_captions+= f"[{chunk['speaker_name']}]: {chunk['transcription']['transcript']}\n"
         background_tasks.add_task(add_meeting_to_db, Item(user_id=meeting.userId,meeting_id=meeting.meeting_id,caption=final_captions))
     return {"success":True}
