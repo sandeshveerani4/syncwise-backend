@@ -9,14 +9,12 @@ from fastapi import BackgroundTasks, FastAPI
 from meetings import Item,add_meeting_to_db
 from langchain.load.dump import dumps
 from database import get_db
-from models import ChatToken,User,Project,ApiKey,Meeting
-from tools import ApiKeys
-import json
+from models import ChatToken,Meeting
 from datetime import datetime
 from typing import Optional, Dict, List
 import httpx
 import os
-
+from utils import get_api_keys
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -39,34 +37,8 @@ async def websocket_endpoint(websocket: WebSocket,user_id:str, thread_id: str,db
     if token is None:
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION,reason="Token invalid")
     
-    keys=ApiKeys()
-    user=db.query(User).filter(User.id==user_id).first()
-    if user is None:
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION,reason="User not found")
-    keys.user_id=user_id
+    keys,project=get_api_keys(user_id,db)
     
-    project=db.query(Project).filter(Project.id==user.projectId).first()
-    if project is None:
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION,reason="Project not found")
-    keys.project_id=project.id
-    
-    if project.githubRepo is not None:
-        keys.GITHUB_REPOSITORY=project.githubRepo
-    
-    apikeys=db.query(ApiKey).filter(ApiKey.projectId==project.id).all()
-    
-    for key in apikeys:
-        try:
-            if key.service=='slack':
-                keys.SLACK_USER_TOKEN=key.key
-            elif key.service=='jira':
-                keys.JIRA_API_TOKEN=key.key
-                keys.JIRA_INSTANCE_URL=key.additionalData['domain']
-                keys.JIRA_USERNAME=key.additionalData['email']
-            elif key.service == 'calendar':
-                keys.CALENDAR_TOKEN=json.loads(key.key)
-        except Exception as e:
-            print(e)
     config = {"configurable": {"thread_id": thread_id,"api_keys":keys,"project":project}}
     graph=get_graph(keys)
     await websocket.accept()

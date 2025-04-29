@@ -6,7 +6,10 @@ from google.oauth2.credentials import Credentials
 from typing import List, Optional, Tuple, Dict
 from langchain_core.utils import guard_import
 import time
-
+from sqlalchemy.orm import Session
+from models import User,Project,ApiKey
+from tools import ApiKeys
+import json
 def import_google() -> Tuple[Request, Credentials]:
     """Import google libraries.
 
@@ -60,3 +63,36 @@ def pinecone_check_index(pc:Pinecone):
         )
         while not pc.describe_index(index_name).status["ready"]:
             time.sleep(1)
+
+from fastapi import WebSocketException,status
+
+def get_api_keys(user_id:str,db:Session):
+    keys=ApiKeys()
+    user=db.query(User).filter(User.id==user_id).first()
+    if user is None:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION,reason="User not found")
+    keys.user_id=user_id
+    
+    project=db.query(Project).filter(Project.id==user.projectId).first()
+    if project is None:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION,reason="Project not found")
+    keys.project_id=project.id
+    
+    if project.githubRepo is not None:
+        keys.GITHUB_REPOSITORY=project.githubRepo
+    
+    apikeys=db.query(ApiKey).filter(ApiKey.projectId==project.id).all()
+    
+    for key in apikeys:
+        try:
+            if key.service=='slack':
+                keys.SLACK_USER_TOKEN=key.key
+            elif key.service=='jira':
+                keys.JIRA_API_TOKEN=key.key
+                keys.JIRA_INSTANCE_URL=key.additionalData['domain']
+                keys.JIRA_USERNAME=key.additionalData['email']
+            elif key.service == 'calendar':
+                keys.CALENDAR_TOKEN=json.loads(key.key)
+        except Exception as e:
+            print(e)
+    return (keys,project)

@@ -16,10 +16,12 @@ def format_meeting_list(meetings: list[Meeting]) -> str:
     entries = []
     for m in meetings:
         created = m.creation_date.strftime("%Y-%m-%d %H:%M") if m.creation_date else "N/A"
-        ended   = m.end_date.strftime(   "%Y-%m-%d %H:%M") if m.end_date      else "N/A"
-        # build one bullet per meeting, with sub-bullets
+        ended   = m.end_date.strftime("%Y-%m-%d %H:%M") if m.end_date      else "N/A"
+        bot_status='N/A'
+        if 'state' in m.bot_data:
+            bot_status=m.bot_data['state']
         entries.append(
-            {'id':m.id,'name':m.name,'meeting_link':m.meeting_id,'created':created,'ended':ended,'attendees':m.attendees}
+            {'id':m.id,'name':m.name,'meeting_link':m.meeting_id,'created':created,'ended':ended,'attendees':m.attendees,'bot_status':bot_status,'tasks':m.tasks}
         )
     return json.dumps(entries)
 

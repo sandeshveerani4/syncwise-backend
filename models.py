@@ -41,3 +41,4 @@ class Meeting(Base):
     end_date=Column(DateTime,nullable=True)
     bot_id=Column(String,nullable=True)
     bot_data=Column(JSON)
+    tasks=Column(ARRAY(JSON),default=[])
