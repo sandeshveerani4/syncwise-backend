@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI,WebSocket,Depends,WebSocketException,status,HTTPException
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,7 +12,6 @@ from database import get_db
 from models import ChatToken,User,Project,ApiKey
 from tools import ApiKeys
 import json
-load_dotenv()
 
 app = FastAPI()
 app.add_middleware(
