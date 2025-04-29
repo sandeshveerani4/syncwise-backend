@@ -39,3 +39,5 @@ class Meeting(Base):
     attendees = Column(ARRAY(String),default=[])
     creation_date=Column(DateTime)
     end_date=Column(DateTime,nullable=True)
+    bot_id=Column(String,nullable=True)
+    bot_data=Column(JSON)

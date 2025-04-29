@@ -3,15 +3,19 @@ load_dotenv()
 from fastapi import FastAPI,WebSocket,Depends,WebSocketException,status,HTTPException
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from graph import get_graph
 from fastapi import BackgroundTasks, FastAPI
 from meetings import Item,add_meeting_to_db
 from langchain.load.dump import dumps
 from database import get_db
-from models import ChatToken,User,Project,ApiKey
+from models import ChatToken,User,Project,ApiKey,Meeting
 from tools import ApiKeys
 import json
+from datetime import datetime
+from typing import Optional, Dict, List
+import httpx
+import os
 
 app = FastAPI()
 app.add_middleware(
@@ -73,10 +77,55 @@ async def websocket_endpoint(websocket: WebSocket,user_id:str, thread_id: str,db
         await websocket.close()
         return
 
-@app.post('/meetings')
-async def add_meeting_transcript(item:Item, background_tasks: BackgroundTasks,db: Session = Depends(get_db)):
-    """ token=db.query(ChatToken).filter(ChatToken.userId==item.user_id,ChatToken.sessionToken==item.token).first()
-    if token is None:
-        raise HTTPException(code=status.HTTP_401_UNAUTHORIZED) """
-    background_tasks.add_task(add_meeting_to_db, item)
-    return {"done":True}
+
+class DataModel(BaseModel):
+    new_state: str
+    old_state: str
+    created_at: datetime
+    event_type: str
+    event_sub_type: Optional[str] = None
+
+class WebhookPayload(BaseModel):
+    idempotency_key: str = Field(..., description="Unique key to prevent duplicate processing")
+    bot_id: str
+    bot_metadata: Optional[Dict] = None
+    trigger: str
+    data: DataModel
+
+class TranscriptSegment(BaseModel):
+    speaker_name: str
+    speaker_uuid: str
+    speaker_user_uuid: Optional[str]
+    timestamp_ms: int
+    duration_ms: int
+    transcription: Optional[str]
+
+@app.post('/attendee_webhook/{event_id}')
+async def add_meeting_transcript(event_id:str,payload:WebhookPayload,background_tasks: BackgroundTasks,db: Session = Depends(get_db)):
+    meeting=db.query(Meeting).filter(Meeting.bot_id==payload.bot_id).first()
+    if meeting is None:
+        raise HTTPException(code=status.HTTP_404_NOT_FOUND)
+    meeting.bot_data={"state":payload.data.new_state}
+    db.commit()
+    if payload.data.new_state=='ended':
+        api_key = os.environ["ATTENDEE_APIKEY"]
+        if not api_key:
+            raise HTTPException(500, detail="Server misconfiguration: missing ATTENDEE_APIKEY")
+
+        url = f"https://app.attendee.dev/api/v1/bots/{payload.bot_id}/transcript"
+        headers = {
+            "Authorization": f"Token {api_key}",
+            "Content-Type": "application/json",
+        }
+        async with httpx.AsyncClient(timeout=10*60) as client:
+            resp = await client.get(url, headers=headers)
+        if resp.status_code != 200:
+            raise HTTPException(resp.status_code, detail=f"Failed to fetch transcript: {resp.text}")
+
+        transcript:List[TranscriptSegment] = resp.json()
+        final_captions=""
+        if len(transcript)>0:
+            for chunk in transcript:
+                final_captions+= f"[{chunk.speaker_name}]: {chunk.transcription}\n"
+        background_tasks.add_task(add_meeting_to_db, Item(user_id=meeting.userId,meeting_id=meeting.meeting_id,caption=final_captions))
+    return {"success":True}
