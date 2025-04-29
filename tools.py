@@ -58,19 +58,6 @@ def get_tools(api_keys:ApiKeys):
 
     try:
         tools.append(_retrieve_or_list_meetings(api_keys.user_id,api_keys.project_id))
-        """ tools.append(Tool(
-        name="retrieve_or_list_meetings",
-        func=retrieve_or_list_meetings(api_keys.user_id,api_keys.project_id),
-        description=(
-            "If you give me both a `query` and a `meeting_id`, I'll return transcript snippets "
-            "from that meeting.\n"
-            "`query` will never be empty(even when there is `meeting_id`) → Pass the user prompt\n"
-            "If you only give me a `query`, I'll interpret it as either:\n"
-            "  • asking for a specific attendee → I'll list meetings with that attendee,\n"
-            "  • asking for a date → I'll list meetings on that date,\n"
-            "  • else → I'll list all your meetings (with IDs, titles, times and attendees).\n"
-        )
-    )) """
     except Exception as error:
         print(error)
     

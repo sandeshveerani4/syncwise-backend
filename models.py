@@ -44,7 +44,7 @@ class Meeting(Base):
     end_date=Column(DateTime,nullable=True)
     bot_id=Column(String,nullable=True)
     bot_data=Column(JSON)
-    tasks=Column(ARRAY(JSON),default=[])
+    tasks=Column(JSON)
 
 class ApiKeys(BaseModel):
     user_id:str=None
