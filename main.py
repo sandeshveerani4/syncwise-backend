@@ -25,6 +25,10 @@ app.add_middleware(
 class Message(BaseModel):
     content: str
 
+@app.get('/')
+def index():
+    return {"status":"working"}
+
 @app.websocket("/ws/{user_id}/{thread_id}")
 async def websocket_endpoint(websocket: WebSocket,user_id:str, thread_id: str,db: Session = Depends(get_db)):
     token=db.query(ChatToken).filter(ChatToken.userId==user_id,ChatToken.sessionToken==thread_id).first()
