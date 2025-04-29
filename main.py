@@ -100,8 +100,8 @@ class TranscriptSegment(BaseModel):
     duration_ms: int
     transcription: Optional[str]
 
-@app.post('/attendee_webhook/{event_id}')
-async def add_meeting_transcript(event_id:str,payload:WebhookPayload,background_tasks: BackgroundTasks,db: Session = Depends(get_db)):
+@app.post('/attendee_webhook')
+async def add_meeting_transcript(payload:WebhookPayload,background_tasks: BackgroundTasks,db: Session = Depends(get_db)):
     meeting=db.query(Meeting).filter(Meeting.bot_id==payload.bot_id).first()
     if meeting is None:
         raise HTTPException(code=status.HTTP_404_NOT_FOUND)
