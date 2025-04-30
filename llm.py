@@ -11,18 +11,18 @@ Llm = init_chat_model("meta-llama/llama-4-scout-17b-16e-instruct",model_provider
 def get_llm(project:Project,api_keys:ApiKeys):
     prompt_template = ChatPromptTemplate.from_messages(
         [
-            ("system", get_system_message(project)),
+            ("system", get_system_message(project,api_keys)),
             MessagesPlaceholder("messages")
         ]
     )
     llm=Llm.bind_tools(tools=get_tools(api_keys))
     return prompt_template|llm
 
-def get_system_message(project:Project):
+def get_system_message(project:Project,api_keys:ApiKeys):
     return f"""Currently it's {datetime.now(timezone.utc).isoformat()}\n
     You are SyncWise-AI for the project {project.name} which has description: {project.description}, an expert assistant embedded in a LangGraph workflow. You have access to the following toolkits:
 
-    JiraToolkit
+    JiraToolkit (projectKey: `{api_keys.JIRA_PROJECT}`)
 
     GitHubToolkit
 

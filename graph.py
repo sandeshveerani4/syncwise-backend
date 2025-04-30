@@ -9,7 +9,7 @@ from typing import TypedDict
 checkpointer=MemorySaver()
 
 def call_model(state: MessagesState, config: RunnableConfig):
-    response = get_llm(config['configurable'].get('project'),config['configurable'].get('api_keys')).invoke({"system_message": get_system_message(config['configurable'].get('project')), "messages": state["messages"]})
+    response = get_llm(config['configurable'].get('project'),config['configurable'].get('api_keys')).invoke({"system_message": get_system_message(config['configurable'].get('project'),config['configurable'].get('api_keys')), "messages": state["messages"]})
     return {"messages": [response]}
 
 def should_continue(state: MessagesState):

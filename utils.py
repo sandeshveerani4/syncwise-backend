@@ -99,6 +99,7 @@ def get_api_keys(user_id:str,db:Session):
                 keys.JIRA_API_TOKEN=key.key
                 keys.JIRA_INSTANCE_URL=key.additionalData['domain']
                 keys.JIRA_USERNAME=key.additionalData['email']
+                keys.JIRA_PROJECT=key.additionalData['projectKey']
             elif key.service == 'calendar':
                 keys.CALENDAR_TOKEN=json.loads(key.key)
         except Exception as e:

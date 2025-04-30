@@ -49,6 +49,7 @@ class Meeting(Base):
 class ApiKeys(BaseModel):
     user_id:str=None
     project_id:str=None
+    JIRA_PROJECT:Optional[str]=None
     JIRA_API_TOKEN: Optional[str]=None
     JIRA_USERNAME:Optional[str]=None
     JIRA_INSTANCE_URL:Optional[str]=None
