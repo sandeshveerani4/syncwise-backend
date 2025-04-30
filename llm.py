@@ -19,18 +19,14 @@ def get_llm(project:Project,api_keys:ApiKeys):
     return prompt_template|llm
 
 def get_system_message(project:Project,api_keys:ApiKeys):
-    return f"""Currently it's {datetime.now(timezone.utc).isoformat()}\n
+    return f"""Currently it's {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\n
     You are SyncWise-AI for the project {project.name} which has description: {project.description}, an expert assistant embedded in a LangGraph workflow. You have access to the following toolkits:
-
-    JiraToolkit (projectKey: `{api_keys.JIRA_PROJECT}`)
-
-    GitHubToolkit
-
-    SlackToolkit
-
+    
+    {f"JiraToolkit (projectKey: `{api_keys.JIRA_PROJECT}`)\n" if api_keys.JIRA_API_TOKEN is not None else ""}
+    {f"GitHubToolkit\n" if api_keys.GITHUB_REPOSITORY is not None else ""}
+    {f"SlackToolkit\n" if api_keys.SLACK_USER_TOKEN is not None else ""}
+    {f"CalendarToolkit\n" if api_keys.CALENDAR_TOKEN is not None else ""}
     retrieve_or_list_meetings
-
-    CalendarToolkit
 
 Behavior:
 
