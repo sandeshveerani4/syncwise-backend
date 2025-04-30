@@ -26,7 +26,7 @@ def get_tools(api_keys:ApiKeys):
             calendar_tools=calendar_toolkit.get_tools()
             tools.extend(calendar_tools)
         except Exception as error:
-            print(error)
+            print("Calendar Tool error: ",error)
     
     if api_keys.JIRA_API_TOKEN is not None and api_keys.JIRA_INSTANCE_URL is not None and api_keys.JIRA_USERNAME is not None:
         try:
@@ -35,7 +35,7 @@ def get_tools(api_keys:ApiKeys):
             jira_tools = toolkit.get_tools()
             tools.extend(jira_tools)
         except Exception as error:
-            print(error)
+            print("Jira Tool error: ",error)
     
     if api_keys.GITHUB_REPOSITORY is not None:
         try:
@@ -44,7 +44,7 @@ def get_tools(api_keys:ApiKeys):
             github_tools = github_toolkit.get_tools()
             tools.extend(github_tools)
         except Exception as error:
-            print(error)
+            print("GitHub Tool error: ",error)
 
 
     if api_keys.SLACK_USER_TOKEN is not None:
@@ -54,11 +54,11 @@ def get_tools(api_keys:ApiKeys):
             slack_tools = slack_toolkit.get_tools()
             tools.extend(slack_tools)
         except Exception as error:
-            print(error)
+            print("Slack Tool error: ",error)
 
     try:
         tools.append(_retrieve_or_list_meetings(api_keys.user_id,api_keys.project_id))
     except Exception as error:
-        print(error)
+        print("Meetings Tool error: ",error)
     
     return tools

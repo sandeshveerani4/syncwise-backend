@@ -52,10 +52,8 @@ def _retrieve_or_list_meetings(
     def retrieve_or_list_meetings(query: str, meeting_id: Optional[str] = None)-> str:
         pinecone_check_index(pc)
         index = pc.Index(os.environ['PINECONE_VECTOR_NAME'])
-        print("Query",query)
         # 1) If they gave us a meeting_id, do the Pinecone transcript lookup:
         if meeting_id:
-            print("Meeting ID",meeting_id)
             q_emb = embeddings.embed_query(query)
             res = index.query(
                 vector=q_emb,
@@ -63,7 +61,6 @@ def _retrieve_or_list_meetings(
                 include_metadata=True,
                 filter={ "meeting_id": { "$eq": meeting_id } }
             )
-            print(res)
             if not res["matches"]:
                 return f"No transcript found for meeting `{meeting_id}`."
             return [m["metadata"]["text"] for m in res["matches"]]
