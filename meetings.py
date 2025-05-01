@@ -12,6 +12,7 @@ from utils import get_api_keys,embeddings,pc
 from langchain.agents import initialize_agent, AgentType
 from models import Meeting
 import json
+
 class Item(BaseModel):
     user_id: str
     meeting_id: str

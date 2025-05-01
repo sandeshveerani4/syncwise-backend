@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from langchain_core.callbacks import CallbackManagerForToolRun
 
-from slack.base import SlackBaseTool
+from custom_tools.slack.base import SlackBaseTool
 
 
 class SlackGetChannel(SlackBaseTool):  # type: ignore[override]

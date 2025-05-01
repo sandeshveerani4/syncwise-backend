@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from langchain_core.tools import BaseTool
 from pydantic import Field
 
-from slack.utils import login
+from custom_tools.slack.utils import login
 
 if TYPE_CHECKING:
     # This is for linting and IDE typehints

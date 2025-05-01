@@ -6,10 +6,10 @@ from langchain_core.tools import BaseTool
 from langchain_core.tools.base import BaseToolkit
 from pydantic import ConfigDict, Field
 
-from slack.get_channel import SlackGetChannel
-from slack.get_message import SlackGetMessage
-from slack.schedule_message import SlackScheduleMessage
-from slack.send_message import SlackSendMessage
+from custom_tools.slack.get_channel import SlackGetChannel
+from custom_tools.slack.get_message import SlackGetMessage
+from custom_tools.slack.schedule_message import SlackScheduleMessage
+from custom_tools.slack.send_message import SlackSendMessage
 
 if TYPE_CHECKING:
     # This is for linting and IDE typehints

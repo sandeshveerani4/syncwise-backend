@@ -3,7 +3,7 @@ from typing import Optional, Type
 from langchain_core.callbacks import CallbackManagerForToolRun
 from pydantic import BaseModel, Field
 
-from slack.base import SlackBaseTool
+from custom_tools.slack.base import SlackBaseTool
 
 class SendMessageSchema(BaseModel):
     """Input for SendMessageTool."""

@@ -2,14 +2,14 @@ from langchain_community.agent_toolkits.jira.toolkit import JiraToolkit
 from langchain_community.utilities.jira import JiraAPIWrapper
 from langchain_community.utilities.github import GitHubAPIWrapper
 from langchain_community.agent_toolkits.github.toolkit import GitHubToolkit
-from slack_tool import SlackToolkit
+from custom_tools.slack_tool import SlackToolkit
 from langchain_google_community.calendar.utils import (
     build_resource_service,
 )
 from slack_sdk import WebClient
 from utils import get_google_credentials
-from calendar_tool import CalendarToolkit
-from meeting_retriever import _retrieve_or_list_meetings
+from custom_tools.calendar_tool import CalendarToolkit
+from custom_tools.meeting_retriever import _retrieve_or_list_meetings
 from models import ApiKeys
 
 def get_tools(api_keys:ApiKeys):

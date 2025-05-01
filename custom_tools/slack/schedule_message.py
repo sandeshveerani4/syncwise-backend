@@ -5,8 +5,8 @@ from typing import Optional, Type
 from langchain_core.callbacks import CallbackManagerForToolRun
 from pydantic import BaseModel, Field
 
-from slack.base import SlackBaseTool
-from slack.utils import UTC_FORMAT
+from custom_tools.slack.base import SlackBaseTool
+from custom_tools.slack.utils import UTC_FORMAT
 
 logger = logging.getLogger(__name__)
 
