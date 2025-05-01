@@ -78,12 +78,12 @@ def get_api_keys(user_id:str,db:Session):
     keys=ApiKeys()
     user=db.query(User).filter(User.id==user_id).first()
     if user is None:
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION,reason="User not found")
+        raise WebSocketException(status.WS_1008_POLICY_VIOLATION,"User not found")
     keys.user_id=user_id
     
     project=db.query(Project).filter(Project.id==user.projectId).first()
     if project is None:
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION,reason="Project not found")
+        raise WebSocketException(status.WS_1008_POLICY_VIOLATION,"Project not found")
     keys.project_id=project.id
     
     if project.githubRepo is not None:

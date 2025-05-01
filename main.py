@@ -1,20 +1,20 @@
 from dotenv import load_dotenv
 load_dotenv()
+
 from fastapi import FastAPI,WebSocket,Depends,WebSocketException,status,HTTPException
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel,Field
 from graph import get_graph
 from fastapi import BackgroundTasks, FastAPI
 from meetings import Item,add_meeting_to_db
 from langchain.load.dump import dumps
 from database import get_db
-from models import ChatToken,Meeting
-from datetime import datetime
-from typing import Optional, Dict, List
+from models import ChatToken,Meeting,TranscriptSegment,WebhookPayload
+from typing import List
 import httpx
 import os
 from utils import get_api_keys
+
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -23,9 +23,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-class Message(BaseModel):
-    content: str
 
 @app.get('/')
 def index():
@@ -48,29 +45,6 @@ async def websocket_endpoint(websocket: WebSocket,user_id:str, thread_id: str,db
             await websocket.send_text(dumps(event, ensure_ascii=False))
         await websocket.close()
         return
-
-
-class DataModel(BaseModel):
-    new_state: str
-    old_state: str
-    created_at: datetime
-    event_type: str
-    event_sub_type: Optional[str] = None
-
-class WebhookPayload(BaseModel):
-    idempotency_key: str = Field(..., description="Unique key to prevent duplicate processing")
-    bot_id: str
-    bot_metadata: Optional[Dict] = None
-    trigger: str
-    data: DataModel
-
-class TranscriptSegment(BaseModel):
-    speaker_name: str
-    speaker_uuid: str
-    speaker_user_uuid: Optional[str]
-    timestamp_ms: int
-    duration_ms: int
-    transcription: Optional[str]
 
 @app.post('/attendee_webhook')
 async def add_meeting_transcript(payload:WebhookPayload,background_tasks: BackgroundTasks,db: Session = Depends(get_db)):
