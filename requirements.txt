@@ -41,6 +41,7 @@ httpcore==1.0.7
 httplib2==0.22.0
 httpx==0.28.1
 httpx-sse==0.4.0
+huggingface-hub==0.31.4
 idna==3.10
 iniconfig==2.1.0
 Jinja2==3.1.6
@@ -50,9 +51,9 @@ joblib==1.4.2
 jsonpatch==1.33
 jsonpointer==3.0.0
 kiwisolver==1.4.8
-langchain==0.3.23
-langchain-community==0.3.21
-langchain-core==0.3.54
+langchain==0.3.25
+langchain-community==0.3.24
+langchain-core==0.3.60
 langchain-experimental==0.3.4
 langchain-google-community==2.0.7
 langchain-groq==0.3.2

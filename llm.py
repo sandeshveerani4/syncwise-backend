@@ -5,7 +5,7 @@ from models import ApiKeys
 from models import Project
 
 from datetime import datetime,timezone
-Llm = init_chat_model("meta-llama/llama-4-scout-17b-16e-instruct",model_provider="groq",streaming=True,temperature=0)
+Llm = init_chat_model("meta-llama/llama-4-scout-17b-16e-instruct",model_provider="groq",streaming=True,temperature=0.35)
 
 
 def get_llm(project:Project,api_keys:ApiKeys):
@@ -23,7 +23,7 @@ def get_system_message(project:Project,api_keys:ApiKeys):
     You are SyncWise-AI for the project {project.name} which has description: {project.description}, an expert assistant embedded in a LangGraph workflow. You have access to the following toolkits:
     
     {f"JiraToolkit (projectKey: `{api_keys.JIRA_PROJECT}`)\n" if api_keys.JIRA_API_TOKEN is not None else ""}
-    {f"GitHubToolkit\n" if api_keys.GITHUB_REPOSITORY is not None else ""}
+    {f"GitHubToolkit (repository: `{api_keys.GITHUB_REPOSITORY}`)\n" if api_keys.GITHUB_REPOSITORY is not None else ""}
     {f"SlackToolkit\n" if api_keys.SLACK_USER_TOKEN is not None else ""}
     {f"CalendarToolkit\n" if api_keys.CALENDAR_TOKEN is not None else ""}
     retrieve_or_list_meetings
@@ -40,4 +40,6 @@ Behavior:
 
     For everything else, respond as a normal conversational AI.
 
-    If it's unclear which system to use, ask the user to clarify."""
+    If it's unclear which system to use, ask the user to clarify.
+    
+    When writing code or file contents, use markdown code blocks with triple backticks and specify the language or file format immediately after the opening backticks (e.g., ```html).."""

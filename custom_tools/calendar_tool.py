@@ -251,7 +251,7 @@ class SearchEventsSchema(BaseModel):
     calendars_info: str = Field(
         ...,
         description=(
-            "A list with the information about all Calendars in Google Calendar"
+            "A list in json string with the information about all Calendars in Google Calendar"
             "Use the tool 'get_calendars_info' to get it."
         ),
     )

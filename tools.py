@@ -1,8 +1,8 @@
 from langchain_community.agent_toolkits.jira.toolkit import JiraToolkit
 from langchain_community.utilities.jira import JiraAPIWrapper
 from langchain_community.utilities.github import GitHubAPIWrapper
-from langchain_community.agent_toolkits.github.toolkit import GitHubToolkit
 from custom_tools.slack_tool import SlackToolkit
+from custom_tools.github_tool import GitHubToolkit
 from langchain_google_community.calendar.utils import (
     build_resource_service,
 )
@@ -11,6 +11,7 @@ from utils import get_google_credentials
 from custom_tools.calendar_tool import CalendarToolkit
 from custom_tools.meeting_retriever import _retrieve_or_list_meetings
 from models import ApiKeys
+import os
 
 def get_tools(api_keys:ApiKeys):
     tools=[]
@@ -39,10 +40,11 @@ def get_tools(api_keys:ApiKeys):
     
     if api_keys.GITHUB_REPOSITORY is not None:
         try:
-            github = GitHubAPIWrapper(github_repository=api_keys.GITHUB_REPOSITORY)
-            github_toolkit = GitHubToolkit.from_github_api_wrapper(github)
-            github_tools = github_toolkit.get_tools()
-            tools.extend(github_tools)
+            with open(os.environ['GITHUB_APP_PRIVATE_FILE']) as f:
+                github = GitHubAPIWrapper(github_repository=api_keys.GITHUB_REPOSITORY,github_app_private_key=f.read())
+                github_toolkit = GitHubToolkit.from_github_api_wrapper(github)
+                github_tools = github_toolkit.get_tools()
+                tools.extend(github_tools)
         except Exception as error:
             print("GitHub Tool error: ",error)
 
