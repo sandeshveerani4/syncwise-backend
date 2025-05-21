@@ -5,6 +5,7 @@ from typing import Any, Optional
 from langchain_core.callbacks import CallbackManagerForToolRun
 
 from custom_tools.slack.base import SlackBaseTool
+from langchain_core.runnables import RunnableConfig
 
 
 class SlackGetChannel(SlackBaseTool):  # type: ignore[override]
@@ -16,12 +17,12 @@ class SlackGetChannel(SlackBaseTool):  # type: ignore[override]
     )
 
     def _run(
-        self, *args: Any, run_manager: Optional[CallbackManagerForToolRun] = None
+        self,config:RunnableConfig,*args: Any, run_manager: Optional[CallbackManagerForToolRun] = None
     ) -> str:
         try:
             logging.getLogger(__name__)
 
-            result = self.client.conversations_list()
+            result = self.get_client(config).conversations_list()
             channels = result["channels"]
             filtered_result = [
                 {key: channel[key] for key in ("id", "name", "created", "num_members")}

@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from custom_tools.slack.base import SlackBaseTool
 from custom_tools.slack.utils import UTC_FORMAT
+from langchain_core.runnables import RunnableConfig
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +48,12 @@ class SlackScheduleMessage(SlackBaseTool):  # type: ignore[override, override]
         message: str,
         channel: str,
         timestamp: str,
+        config:RunnableConfig,
         run_manager: Optional[CallbackManagerForToolRun] = None,
     ) -> str:
         try:
             unix_timestamp = dt.timestamp(dt.strptime(timestamp, UTC_FORMAT))
-            result = self.client.chat_scheduleMessage(
+            result = self.get_client(config).chat_scheduleMessage(
                 channel=channel, text=message, post_at=unix_timestamp
             )
             output = "Message scheduled: " + str(result)

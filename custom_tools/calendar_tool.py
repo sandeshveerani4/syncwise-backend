@@ -6,11 +6,6 @@ from langchain_core.tools import BaseTool
 from langchain_core.tools.base import BaseToolkit
 from pydantic import ConfigDict, Field
 
-from langchain_google_community.calendar.current_datetime import GetCurrentDatetime
-from langchain_google_community.calendar.delete_event import CalendarDeleteEvent
-from langchain_google_community.calendar.get_calendars_info import GetCalendarsInfo
-from langchain_google_community.calendar.move_event import CalendarMoveEvent
-from langchain_google_community.calendar.update_event import CalendarUpdateEvent
 from langchain_google_community.calendar.utils import build_resource_service
 import re
 from datetime import datetime
@@ -19,10 +14,38 @@ from uuid import uuid4
 
 from langchain_core.callbacks import CallbackManagerForToolRun
 from pydantic import BaseModel, Field
-
-from langchain_google_community.calendar.base import CalendarBaseTool
 from langchain_google_community.calendar.utils import is_all_day_event
 import json
+from langchain_core.runnables import RunnableConfig
+from utils import get_google_credentials
+
+if TYPE_CHECKING:
+    # This is for linting and IDE typehints
+    from googleapiclient.discovery import Resource  # type: ignore[import]
+else:
+    try:
+        # We do this so pydantic can resolve the types when instantiating
+        from googleapiclient.discovery import Resource
+    except ImportError:
+        pass
+
+
+class CalendarBaseTool(BaseTool):  # type: ignore[override]
+    """Base class for Google Calendar tools."""
+
+    def from_api_resource(cls,config:RunnableConfig) -> "CalendarBaseTool":
+        """Create a tool from an api resource.
+
+        Returns:
+            A tool.
+        """
+        credentials = get_google_credentials(
+            token=config['configurable'].get('__api_keys').CALENDAR_TOKEN,
+            scopes=["https://www.googleapis.com/auth/calendar"],
+        )
+
+        api_resource = build_resource_service(credentials=credentials)
+        return api_resource
 
 class CreateEventSchema(BaseModel):
     """Input for CalendarCreateEvent."""
@@ -94,6 +117,33 @@ class CreateEventSchema(BaseModel):
             "transparent for available and opaque for busy."
         ),
     )
+
+
+class GetCalendarsInfo(CalendarBaseTool):  # type: ignore[override, override]
+    """Tool that get information about the calendars in Google Calendar."""
+
+    name: str = "get_calendars_info"
+    description: str = (
+        "Use this tool to get information about the calendars in Google Calendar."
+    )
+
+    def _run(self,config:RunnableConfig) -> str:
+        """Run the tool to get information about the calendars in Google Calendar."""
+        try:
+            calendars = self.from_api_resource(config).calendarList().list().execute()
+            data = []
+            for item in calendars.get("items", []):
+                data.append(
+                    {
+                        "id": item["id"],
+                        "summary": item["summary"],
+                        "timeZone": item["timeZone"],
+                    }
+                )
+            return json.dumps(data)
+        except Exception as error:
+            raise Exception(f"An error occurred: {error}") from error
+
 
 
 class CalendarCreateEvent(CalendarBaseTool):  # type: ignore[override, override]
@@ -201,6 +251,7 @@ class CalendarCreateEvent(CalendarBaseTool):  # type: ignore[override, override]
         start_datetime: str,
         end_datetime: str,
         timezone: str,
+        config:RunnableConfig,
         calendar_id: str = "primary",
         recurrence: Optional[Dict[str, Any]] = None,
         location: Optional[str] = None,
@@ -210,7 +261,6 @@ class CalendarCreateEvent(CalendarBaseTool):  # type: ignore[override, override]
         conference_data: Optional[bool] = None,
         color_id: Optional[str] = None,
         transparency: Optional[str] = None,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
     ) -> str:
         """Run the tool to create an event in Google Calendar."""
         try:
@@ -230,7 +280,7 @@ class CalendarCreateEvent(CalendarBaseTool):  # type: ignore[override, override]
             )
             conference_version = 1 if conference_data else 0
             event = (
-                self.api_resource.events()
+                self.from_api_resource(config).events()
                 .insert(
                     calendarId=calendar_id,
                     body=body,
@@ -336,11 +386,11 @@ class CalendarSearchEvents(CalendarBaseTool):  # type: ignore[override, override
         calendars_info: str,
         min_datetime: str,
         max_datetime: str,
+        config:RunnableConfig,
         max_results: int = 10,
         single_events: bool = True,
         order_by: str = "startTime",
-        query: Optional[str] = None,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        query: Optional[str] = None
     ) -> List[Dict[str, Optional[str]]]:
         """Run the tool to search events in Google Calendar."""
         try:
@@ -361,7 +411,7 @@ class CalendarSearchEvents(CalendarBaseTool):  # type: ignore[override, override
                     .isoformat()
                 )
                 events_result = (
-                    self.api_resource.events()
+                    self.from_api_resource(config).events()
                     .list(
                         calendarId=calendar,
                         timeMin=time_min,
@@ -380,6 +430,382 @@ class CalendarSearchEvents(CalendarBaseTool):  # type: ignore[override, override
             raise Exception(
                 f"An error occurred while fetching events: {error}"
             ) from error
+
+class UpdateEventSchema(BaseModel):
+    """Input for CalendarUpdateEvent."""
+
+    event_id: str = Field(..., description="The event ID to update.")
+    calendar_id: str = Field(
+        default="primary", description="The calendar ID to create the event in."
+    )
+    summary: Optional[str] = Field(default=None, description="The title of the event.")
+    start_datetime: Optional[str] = Field(
+        default=None,
+        description=(
+            "The new start datetime for the event in 'YYYY-MM-DD HH:MM:SS' format. "
+            "If the event is an all-day event, set the time to 'YYYY-MM-DD' format."
+        ),
+    )
+    end_datetime: Optional[str] = Field(
+        default=None,
+        description=(
+            "The new end datetime for the event in 'YYYY-MM-DD HH:MM:SS' format. "
+            "If the event is an all-day event, set the time to 'YYYY-MM-DD' format."
+        ),
+    )
+    timezone: Optional[str] = Field(
+        default=None, description="The timezone of the event."
+    )
+    recurrence: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "The recurrence of the event. "
+            "Format: {'FREQ': <'DAILY' or 'WEEKLY'>, 'INTERVAL': <number>, "
+            "'COUNT': <number or None>, 'UNTIL': <'YYYYMMDD' or None>, "
+            "'BYDAY': <'MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU' or None>}. "
+            "Use either COUNT or UNTIL, but not both; set the other to None."
+        ),
+    )
+    location: Optional[str] = Field(
+        default=None, description="The location of the event."
+    )
+    description: Optional[str] = Field(
+        default=None, description="The description of the event."
+    )
+    attendees: Optional[List[str]] = Field(
+        default=None, description="A list of attendees' email addresses for the event."
+    )
+    reminders: Union[None, bool, List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Reminders for the event. "
+            "Set to True for default reminders, or provide a list like "
+            "[{'method': 'email', 'minutes': <minutes>}, ...]. "
+            "Valid methods are 'email' and 'popup'."
+        ),
+    )
+    conference_data: Optional[bool] = Field(
+        default=None, description="Whether to include conference data."
+    )
+    color_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "The color ID of the event. None for default. "
+            "'1': Lavender, '2': Sage, '3': Grape, '4': Flamingo, '5': Banana, "
+            "'6': Tangerine, '7': Peacock, '8': Graphite, '9': Blueberry, "
+            "'10': Basil, '11': Tomato."
+        ),
+    )
+    transparency: Optional[str] = Field(
+        default=None,
+        description=(
+            "User availability for the event."
+            "transparent for available and opaque for busy."
+        ),
+    )
+    send_updates: Optional[str] = Field(
+        default=None,
+        description=(
+            "Whether to send updates to attendees. "
+            "Allowed values are 'all', 'externalOnly', or 'none'."
+        ),
+    )
+
+
+class CalendarUpdateEvent(CalendarBaseTool):  # type: ignore[override, override]
+    """Tool that updates an event in Google Calendar."""
+
+    name: str = "update_calendar_event"
+    description: str = "Use this tool to update an event. "
+    args_schema: Type[UpdateEventSchema] = UpdateEventSchema
+
+    def _get_event(self, config:RunnableConfig, event_id: str, calendar_id: str = "primary") -> Dict[str, Any]:
+        """Get the event by ID."""
+        event = (
+            self.from_api_resource(config).events()
+            .get(calendarId=calendar_id, eventId=event_id)
+            .execute()
+        )
+        return event
+
+    def _refactor_event(
+        self,
+        event: Dict[str, Any],
+        summary: Optional[str] = None,
+        start_datetime: Optional[str] = None,
+        end_datetime: Optional[str] = None,
+        timezone: Optional[str] = None,
+        recurrence: Optional[Dict[str, Any]] = None,
+        location: Optional[str] = None,
+        description: Optional[str] = None,
+        attendees: Optional[List[str]] = None,
+        reminders: Union[None, bool, List[Dict[str, Any]]] = None,
+        conference_data: Optional[bool] = None,
+        color_id: Optional[str] = None,
+        transparency: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Refactor the event body."""
+        if summary is not None:
+            event["summary"] = summary
+        try:
+            if start_datetime and end_datetime:
+                if is_all_day_event(start_datetime, end_datetime):
+                    event["start"] = {"date": start_datetime}
+                    event["end"] = {"date": end_datetime}
+                else:
+                    datetime_format = "%Y-%m-%d %H:%M:%S"
+                    timezone = timezone or event["start"]["timeZone"]
+                    start_dt = datetime.strptime(start_datetime, datetime_format)
+                    end_dt = datetime.strptime(end_datetime, datetime_format)
+                    event["start"] = {
+                        "dateTime": start_dt.astimezone().isoformat(),
+                        "timeZone": timezone,
+                    }
+                    event["end"] = {
+                        "dateTime": end_dt.astimezone().isoformat(),
+                        "timeZone": timezone,
+                    }
+        except ValueError as error:
+            raise ValueError("The datetime format is incorrect.") from error
+        if (recurrence is not None) and (isinstance(recurrence, dict)):
+            recurrence_items = [
+                f"{k}={v}" for k, v in recurrence.items() if v is not None
+            ]
+            event.update({"recurrence": ["RRULE:" + ";".join(recurrence_items)]})
+        if location is not None:
+            event.update({"location": location})
+        if description is not None:
+            event.update({"description": description})
+        if attendees is not None:
+            attendees_emails = []
+            email_pattern = r"^[^@]+@[^@]+\.[^@]+$"
+            for email in attendees:
+                if not re.match(email_pattern, email):
+                    raise ValueError(f"Invalid email address: {email}")
+                attendees_emails.append({"email": email})
+            event.update({"attendees": attendees_emails})
+        if reminders is not None:
+            if reminders is True:
+                event.update({"reminders": {"useDefault": True}})
+            elif isinstance(reminders, list):
+                for reminder in reminders:
+                    if "method" not in reminder or "minutes" not in reminder:
+                        raise ValueError(
+                            "Each reminder must have 'method' and 'minutes' keys."
+                        )
+                    if reminder["method"] not in ["email", "popup"]:
+                        raise ValueError(
+                            "The reminder method must be 'email' or 'popup'."
+                        )
+                event.update(
+                    {"reminders": {"useDefault": False, "overrides": reminders}}
+                )
+            else:
+                event.update({"reminders": {"useDefault": False}})
+        if conference_data:
+            event.update(
+                {
+                    "conferenceData": {
+                        "createRequest": {
+                            "requestId": str(uuid4()),
+                            "conferenceSolutionKey": {"type": "hangoutsMeet"},
+                        }
+                    }
+                }
+            )
+        else:
+            event.update({"conferenceData": None})
+        if color_id is not None:
+            event["colorId"] = color_id
+        if transparency is not None:
+            event.update({"transparency": transparency})
+        return event
+
+    def _run(
+        self,
+        event_id: str,
+        summary: str,
+        start_datetime: str,
+        end_datetime: str,
+        config:RunnableConfig,
+        calendar_id: str = "primary",
+        timezone: Optional[str] = None,
+        recurrence: Optional[Dict[str, Any]] = None,
+        location: Optional[str] = None,
+        description: Optional[str] = None,
+        attendees: Optional[List[str]] = None,
+        reminders: Union[None, bool, List[Dict[str, Any]]] = None,
+        conference_data: Optional[bool] = None,
+        color_id: Optional[str] = None,
+        transparency: Optional[str] = None,
+        send_updates: Optional[str] = None,
+        run_manager: Optional[CallbackManagerForToolRun] = None,
+    ) -> str:
+        """Run the tool to update an event in Google Calendar."""
+        try:
+            event = self._get_event(config, event_id, calendar_id)
+            body = self._refactor_event(
+                event=event,
+                summary=summary,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+                timezone=timezone,
+                recurrence=recurrence,
+                location=location,
+                description=description,
+                attendees=attendees,
+                reminders=reminders,
+                conference_data=conference_data,
+                color_id=color_id,
+                transparency=transparency,
+            )
+            conference_version = 1 if conference_data else 0
+            result = (
+                self.from_api_resource(config).events()
+                .update(
+                    calendarId=calendar_id,
+                    eventId=event_id,
+                    body=body,
+                    conferenceDataVersion=conference_version,
+                    sendUpdates=send_updates,
+                )
+                .execute()
+            )
+            return f"Event updated: {result.get('htmlLink')}"
+        except Exception as error:
+            raise Exception(f"An error occurred: {error}") from error
+
+class CurrentDatetimeSchema(BaseModel):
+    """Input for GetCurrentDatetime."""
+
+    calendar_id: Optional[str] = Field(
+        default="primary", description="The calendar ID. Defaults to 'primary'."
+    )
+
+
+class GetCurrentDatetime(CalendarBaseTool):  # type: ignore[override, override]
+    """Tool that gets the current datetime according to the calendar timezone."""
+
+    name: str = "get_current_datetime"
+    description: str = (
+        "Use this tool to get the current datetime according to the calendar timezone."
+        "The output datetime format is 'YYYY-MM-DD HH:MM:SS'"
+    )
+    args_schema: Type[CurrentDatetimeSchema] = CurrentDatetimeSchema
+
+    def get_timezone(self,config:RunnableConfig, calendar_id: Optional[str]) -> str:
+        """Get the timezone of the specified calendar."""
+        calendars = self.from_api_resource(config).calendarList().list().execute().get("items", [])
+        if not calendars:
+            raise ValueError("No calendars found.")
+        if calendar_id == "primary":
+            return calendars[0]["timeZone"]
+        else:
+            for item in calendars:
+                if item["id"] == calendar_id and item["accessRole"] != "reader":
+                    return item["timeZone"]
+            raise ValueError(f"Timezone not found for calendar ID: {calendar_id}")
+
+    def _run(
+        self,
+        config:RunnableConfig,
+        calendar_id: Optional[str] = "primary",
+    ) -> str:
+        """Run the tool to create an event in Google Calendar."""
+        try:
+            timezone = self.get_timezone(config,calendar_id)
+            date_time = datetime.now(ZoneInfo(timezone)).strftime("%Y-%m-%d %H:%M:%S")
+            return f"Time zone: {timezone}, Date and time: {date_time}"
+        except Exception as error:
+            raise Exception(f"An error occurred: {error}") from error
+
+class DeleteEventSchema(BaseModel):
+    """Input for CalendarDeleteEvent."""
+
+    event_id: str = Field(..., description="The event ID to delete.")
+    calendar_id: Optional[str] = Field(
+        default="primary", description="The origin calendar ID."
+    )
+    send_updates: Optional[str] = Field(
+        default=None,
+        description=(
+            "Whether to send updates to attendees."
+            "Allowed values are 'all', 'externalOnly', or 'none'."
+        ),
+    )
+
+
+class CalendarDeleteEvent(CalendarBaseTool):  # type: ignore[override, override]
+    """Tool that delete an event in Google Calendar."""
+
+    name: str = "delete_calendar_event"
+    description: str = "Use this tool to delete an event."
+    args_schema: Type[DeleteEventSchema] = DeleteEventSchema
+
+    def _run(
+        self,
+        event_id: str,
+        config:RunnableConfig,
+        calendar_id: Optional[str] = "primary",
+        send_updates: Optional[str] = None,
+    ) -> str:
+        """Run the tool to delete an event in Google Calendar."""
+        try:
+            self.from_api_resource(config).events().delete(
+                eventId=event_id, calendarId=calendar_id, sendUpdates=send_updates
+            ).execute()
+            return "Event deleted"
+        except Exception as error:
+            raise Exception(f"An error occurred: {error}") from error
+
+class MoveEventSchema(BaseModel):
+    """Input for CalendarMoveEvent."""
+
+    event_id: str = Field(..., description="The event ID to move.")
+    origin_calenddar_id: str = Field(..., description="The origin calendar ID.")
+    destination_calendar_id: str = Field(
+        ..., description="The destination calendar ID."
+    )
+    send_updates: Optional[str] = Field(
+        default=None,
+        description=(
+            "Whether to send updates to attendees."
+            "Allowed values are 'all', 'externalOnly', or 'none'."
+        ),
+    )
+
+
+class CalendarMoveEvent(CalendarBaseTool):  # type: ignore[override, override]
+    """Tool that move an event between calendars in Google Calendar."""
+
+    name: str = "move_calendar_event"
+    description: str = "Use this tool to move an event between calendars."
+    args_schema: Type[MoveEventSchema] = MoveEventSchema
+
+    def _run(
+        self,
+        event_id: str,
+        origin_calendar_id: str,
+        destination_calendar_id: str,
+        config:RunnableConfig,
+        send_updates: Optional[str] = None,
+        run_manager: Optional[CallbackManagerForToolRun] = None,
+    ) -> str:
+        """Run the tool to update an event in Google Calendar."""
+        try:
+            result = (
+                self.from_api_resource(config).events()
+                .move(
+                    eventId=event_id,
+                    calendarId=origin_calendar_id,
+                    destination=destination_calendar_id,
+                    sendUpdates=send_updates,
+                )
+                .execute()
+            )
+            return f"Event moved: {result.get('htmlLink')}"
+        except Exception as error:
+            raise Exception(f"An error occurred: {error}") from error
 
 if TYPE_CHECKING:
     # This is for linting and IDE typehints
@@ -408,7 +834,7 @@ class CalendarToolkit(BaseToolkit):
         See https://python.langchain.com/docs/security for more information.
     """
 
-    api_resource: Resource = Field(default_factory=build_resource_service)
+    # api_resource: Resource = Field(default_factory=build_resource_service)
 
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
@@ -417,11 +843,11 @@ class CalendarToolkit(BaseToolkit):
     def get_tools(self) -> List[BaseTool]:
         """Get the tools in the toolkit."""
         return [
-            CalendarCreateEvent(api_resource=self.api_resource),
-            CalendarSearchEvents(api_resource=self.api_resource),
-            CalendarUpdateEvent(api_resource=self.api_resource),
-            GetCalendarsInfo(api_resource=self.api_resource),
-            CalendarMoveEvent(api_resource=self.api_resource),
-            CalendarDeleteEvent(api_resource=self.api_resource),
-            GetCurrentDatetime(api_resource=self.api_resource),
+            CalendarCreateEvent(),
+            CalendarSearchEvents(),
+            CalendarUpdateEvent(),
+            GetCalendarsInfo(),
+            CalendarMoveEvent(),
+            CalendarDeleteEvent(),
+            GetCurrentDatetime(),
         ]

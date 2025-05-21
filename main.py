@@ -4,7 +4,7 @@ load_dotenv()
 from fastapi import FastAPI,WebSocket,Depends,WebSocketException,status,HTTPException
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
-from graph import get_graph
+from graph import graph
 from fastapi import BackgroundTasks, FastAPI
 from meetings import Item,add_meeting_to_db
 from langchain.load.dump import dumps
@@ -36,8 +36,7 @@ async def websocket_endpoint(websocket: WebSocket,user_id:str, thread_id: str,db
     
     keys,project=get_api_keys(user_id,db)
     
-    config = {"configurable": {"thread_id": thread_id,"api_keys":keys,"project":project}}
-    graph=get_graph(keys)
+    config = {"configurable": {"thread_id": thread_id,"__api_keys":keys,"project":project}}
     await websocket.accept()
     while True:
         data = await websocket.receive_text()
@@ -50,7 +49,7 @@ async def websocket_endpoint(websocket: WebSocket,user_id:str, thread_id: str,db
 async def add_meeting_transcript(payload:WebhookPayload,background_tasks: BackgroundTasks,db: Session = Depends(get_db)):
     meeting=db.query(Meeting).filter(Meeting.bot_id==payload.bot_id).first()
     if meeting is None:
-        raise HTTPException(code=status.HTTP_404_NOT_FOUND)
+        raise HTTPException(status.HTTP_404_NOT_FOUND)
     meeting.bot_data={"state":payload.data.new_state}
     db.commit()
     if payload.data.new_state=='ended':

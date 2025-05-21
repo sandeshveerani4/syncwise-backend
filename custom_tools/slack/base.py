@@ -8,6 +8,7 @@ from langchain_core.tools import BaseTool
 from pydantic import Field
 
 from custom_tools.slack.utils import login
+from langchain_core.runnables import RunnableConfig
 
 if TYPE_CHECKING:
     # This is for linting and IDE typehints
@@ -23,5 +24,6 @@ else:
 class SlackBaseTool(BaseTool):  # type: ignore[override]
     """Base class for Slack tools."""
 
-    client: WebClient
-    """The WebClient object."""
+    @classmethod
+    def get_client(self,config:RunnableConfig)->WebClient:
+        return WebClient(token=config['configurable'].get('__api_keys').SLACK_USER_TOKEN)

@@ -94,7 +94,7 @@ class SlackToolkit(BaseToolkit):
 
             The #general channel was created on timestamp 1671043305.
     """  # noqa: E501
-    client: WebClient
+    # client: WebClient
     
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
@@ -103,8 +103,8 @@ class SlackToolkit(BaseToolkit):
     def get_tools(self) -> List[BaseTool]:
         """Get the tools in the toolkit."""
         return [
-            SlackGetChannel(client=self.client),
-            SlackGetMessage(client=self.client),
-            SlackScheduleMessage(client=self.client),
-            SlackSendMessage(client=self.client),
+            SlackGetChannel(),
+            SlackGetMessage(),
+            SlackScheduleMessage(),
+            SlackSendMessage(),
         ]

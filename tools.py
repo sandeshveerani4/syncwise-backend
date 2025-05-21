@@ -1,66 +1,42 @@
-from langchain_community.agent_toolkits.jira.toolkit import JiraToolkit
-from langchain_community.utilities.jira import JiraAPIWrapper
-from langchain_community.utilities.github import GitHubAPIWrapper
+from custom_tools.jira_tool import JiraToolkit
 from custom_tools.slack_tool import SlackToolkit
 from custom_tools.github_tool import GitHubToolkit
-from langchain_google_community.calendar.utils import (
-    build_resource_service,
-)
-from slack_sdk import WebClient
-from utils import get_google_credentials
 from custom_tools.calendar_tool import CalendarToolkit
-from custom_tools.meeting_retriever import _retrieve_or_list_meetings
-from models import ApiKeys
+from custom_tools.meeting_retriever import retrieve_or_list_meetings
 import os
 
-def get_tools(api_keys:ApiKeys):
-    tools=[]
-    if api_keys.CALENDAR_TOKEN is not None:
-        try:
-            credentials = get_google_credentials(
-                token=api_keys.CALENDAR_TOKEN,
-                scopes=["https://www.googleapis.com/auth/calendar"],
-            )
+tools=[]
 
-            api_resource = build_resource_service(credentials=credentials)
-            calendar_toolkit = CalendarToolkit(api_resource=api_resource)
-            calendar_tools=calendar_toolkit.get_tools()
-            tools.extend(calendar_tools)
-        except Exception as error:
-            print("Calendar Tool error: ",error)
-    
-    if api_keys.JIRA_API_TOKEN is not None and api_keys.JIRA_INSTANCE_URL is not None and api_keys.JIRA_USERNAME is not None:
-        try:
-            jira = JiraAPIWrapper(jira_api_token=api_keys.JIRA_API_TOKEN,jira_username=api_keys.JIRA_USERNAME,jira_cloud=True,jira_instance_url=api_keys.JIRA_INSTANCE_URL)
-            toolkit = JiraToolkit.from_jira_api_wrapper(jira)
-            jira_tools = toolkit.get_tools()
-            tools.extend(jira_tools)
-        except Exception as error:
-            print("Jira Tool error: ",error)
-    
-    if api_keys.GITHUB_REPOSITORY is not None:
-        try:
-            with open(os.environ['GITHUB_APP_PRIVATE_FILE']) as f:
-                github = GitHubAPIWrapper(github_repository=api_keys.GITHUB_REPOSITORY,github_app_private_key=f.read())
-                github_toolkit = GitHubToolkit.from_github_api_wrapper(github)
-                github_tools = github_toolkit.get_tools()
-                tools.extend(github_tools)
-        except Exception as error:
-            print("GitHub Tool error: ",error)
+try:
+    calendar_toolkit = CalendarToolkit()
+    calendar_tools=calendar_toolkit.get_tools()
+    tools.extend(calendar_tools)
+except Exception as error:
+    print("Calendar Tool error: ",error)
 
+try:
+    toolkit = JiraToolkit.from_config()
+    jira_tools = toolkit.get_tools()
+    tools.extend(jira_tools)
+except Exception as error:
+    print("Jira Tool error: ",error)
 
-    if api_keys.SLACK_USER_TOKEN is not None:
-        try:
-            client = WebClient(token=api_keys.SLACK_USER_TOKEN)
-            slack_toolkit = SlackToolkit(client=client)
-            slack_tools = slack_toolkit.get_tools()
-            tools.extend(slack_tools)
-        except Exception as error:
-            print("Slack Tool error: ",error)
+try:
+    with open(os.environ['GITHUB_APP_PRIVATE_FILE']) as f:
+        github_toolkit = GitHubToolkit.from_file(github_app_private_key=f.read())
+        github_tools = github_toolkit.get_tools()
+        tools.extend(github_tools)
+except Exception as error:
+    print("GitHub Tool error: ",error)
 
-    try:
-        tools.append(_retrieve_or_list_meetings(api_keys.user_id,api_keys.project_id))
-    except Exception as error:
-        print("Meetings Tool error: ",error)
-    
-    return tools
+try:
+    slack_toolkit = SlackToolkit()
+    slack_tools = slack_toolkit.get_tools()
+    tools.extend(slack_tools)
+except Exception as error:
+    print("Slack Tool error: ",error)
+
+try:
+    tools.append(retrieve_or_list_meetings)
+except Exception as error:
+    print("Meetings Tool error: ",error)

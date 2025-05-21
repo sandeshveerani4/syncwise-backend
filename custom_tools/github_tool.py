@@ -163,6 +163,45 @@ class TagName(BaseModel):
         description="The tag name of the release, e.g. `v1.0.0`.",
     )
 
+from typing import Any, Optional, Type
+from langchain_core.runnables import RunnableConfig
+
+
+class GitHubAction(BaseTool):
+    """Tool for interacting with the GitHub API."""
+
+    api_wrapper: GitHubAPIWrapper = None
+    private_key:str=""
+    mode: str
+    name: str = ""
+    description: str = ""
+    args_schema: Optional[Type[BaseModel]] = None
+
+    def _run(
+        self,
+        config:RunnableConfig,
+        instructions: Optional[str] = "",
+        **kwargs: Any,
+    ) -> str:
+        """Use the GitHub API to run an operation."""
+        self.api_wrapper=GitHubAPIWrapper(github_app_private_key=self.private_key,github_repository=config['configurable'].get('__api_keys').GITHUB_REPOSITORY)
+        if not instructions or instructions == "{}":
+            # Catch other forms of empty input that GPT-4 likes to send.
+            instructions = ""
+        if self.args_schema is not None:
+            field_names = list(self.args_schema.schema()["properties"].keys())
+            if len(field_names) > 1:
+                raise AssertionError(
+                    f"Expected one argument in tool schema, got {field_names}."
+                )
+            if field_names:
+                field = field_names[0]
+            else:
+                field = ""
+            query = str(kwargs.get(field, ""))
+        else:
+            query = instructions
+        return self.api_wrapper.run(self.mode, query)
 
 class GitHubToolkit(BaseToolkit):
     """GitHub Toolkit.
@@ -298,13 +337,13 @@ class GitHubToolkit(BaseToolkit):
     tools: List[BaseTool] = []
 
     @classmethod
-    def from_github_api_wrapper(
-        cls, github_api_wrapper: GitHubAPIWrapper, include_release_tools: bool = False
+    def from_file(
+        cls, github_app_private_key: str, include_release_tools: bool = False
     ) -> "GitHubToolkit":
         """Create a GitHubToolkit from a GitHubAPIWrapper.
 
         Args:
-            github_api_wrapper: GitHubAPIWrapper. The GitHub API wrapper.
+            github_app_private_key: str. The GitHub Private key.
             include_release_tools: bool. Whether to include release-related tools.
                 Defaults to False.
 
@@ -467,7 +506,7 @@ class GitHubToolkit(BaseToolkit):
                 name=action["mode"],
                 description=action["description"],
                 mode=action["mode"],
-                api_wrapper=github_api_wrapper,
+                private_key=github_app_private_key,
                 args_schema=action.get("args_schema", None),
             )
             for action in operations

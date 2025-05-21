@@ -6,6 +6,7 @@ from langchain_core.callbacks import CallbackManagerForToolRun
 from pydantic import BaseModel, Field
 
 from custom_tools.slack.base import SlackBaseTool
+from langchain_core.runnables import RunnableConfig
 
 
 class SlackGetMessageSchema(BaseModel):
@@ -28,11 +29,11 @@ class SlackGetMessage(SlackBaseTool):  # type: ignore[override, override]
     def _run(
         self,
         channel_id: str,
-        run_manager: Optional[CallbackManagerForToolRun] = None,
+        config:RunnableConfig,
     ) -> str:
         logging.getLogger(__name__)
         try:
-            result = self.client.conversations_history(channel=channel_id)
+            result = self.get_client(config).conversations_history(channel=channel_id)
             messages = result["messages"]
             filtered_messages = [
                 {key: message[key] for key in ("user", "text", "ts")}
