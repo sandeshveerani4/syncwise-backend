@@ -4,7 +4,7 @@ load_dotenv()
 from fastapi import FastAPI,WebSocket,Depends,WebSocketException,status,HTTPException
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
-from graph import graph
+from graph import graph,generate_system
 from fastapi import BackgroundTasks, FastAPI
 from meetings import Item,add_meeting_to_db
 from langchain.load.dump import dumps
@@ -36,7 +36,7 @@ async def websocket_endpoint(websocket: WebSocket,user_id:str, thread_id: str,db
     
     keys,project=get_api_keys(user_id,db)
     
-    config = {"configurable": {"thread_id": thread_id,"__api_keys":keys,"project":project}}
+    config = {"configurable": {"thread_id": thread_id,"__api_keys":keys,"project":project,"system_message":generate_system(keys,project)}}
     await websocket.accept()
     while True:
         data = await websocket.receive_text()

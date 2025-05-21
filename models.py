@@ -113,7 +113,7 @@ class Meeting(Base):
     end_date = Column(DateTime, nullable=True)
     bot_id = Column(String, nullable=True)
     bot_data = Column(JSON, nullable=False, default=dict)
-
+    summary=Column(String,nullable=True)
     # relations
     user = relationship("User", back_populates="meetings")
     project = relationship("Project", back_populates="meetings")

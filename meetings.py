@@ -5,13 +5,12 @@ from pydantic import BaseModel
 from langchain_pinecone import PineconeVectorStore
 from utils import pinecone_check_index
 from llm import Llm
-from langchain_community.agent_toolkits.jira.toolkit import JiraToolkit
-from langchain_community.utilities.jira import JiraAPIWrapper
 from database import SessionLocal
 from utils import get_api_keys,embeddings,pc
-from langchain.agents import initialize_agent, AgentType
 from models import Meeting
 import json
+from graph import graph
+from uuid import uuid4
 
 class Item(BaseModel):
     user_id: str
@@ -35,36 +34,62 @@ def add_meeting_to_db(item:Item):
     length_function=len,)
     new_chunks = text_splitter.split_documents([doc])
     vector_store.add_documents(new_chunks)
+    
+    db=SessionLocal()
     try:
+        meeting=db.query(Meeting).filter(Meeting.meeting_id==item.meeting_id).first()
         keys,project=get_api_keys(item.user_id,SessionLocal())
-        if keys.JIRA_API_TOKEN is not None and keys.JIRA_INSTANCE_URL is not None and keys.JIRA_USERNAME is not None:
-            jira = JiraAPIWrapper(jira_api_token=keys.JIRA_API_TOKEN,jira_username=keys.JIRA_USERNAME,jira_cloud=True,jira_instance_url=keys.JIRA_INSTANCE_URL)
-            toolkit = JiraToolkit.from_jira_api_wrapper(jira)
-            jira_tools = toolkit.get_tools()
-            prompt=f"""You are an AI assistant whose job is to extract *actionable* items from a meeting transcript
-and turn each one into a Jira task by invoking the `create_issue` tool.
+        try:
+            if keys.JIRA_API_TOKEN is not None and keys.JIRA_INSTANCE_URL is not None and keys.JIRA_USERNAME is not None:
+                prompt=f"""Jira Project key: `{keys.JIRA_PROJECT}`\n
+You are an AI assistant whose job is to extract *actionable* items from a meeting transcript and turn each one into a Jira task by invoking the `create_issue` tool.
+*Actionable* items are first-person commitments or owner-assigned deliverables that specify a clear action (e.g., "I will update the doc," "Alice will do X by next week"). Skip any general discussion, brainstorming points without owners, or vague ideas.
 
 For each action item:
-- Use tool `"create_issue"`
+    - Use tool `"create_issue"`
 
-If you can successfully create action items, reply exactly their json response comma separated in a json array
-If you find **no** action items, reply exactly `No tasks found.`
-
----  
+After you successfully create action items, reply exactly their json response comma separated in a json array
+If you cannot create action items, reply exactly `[]`
+"""
+                prompt2=f"""---
 **Meeting Transcript:**  
 \"\"\"  
 {item.caption}
-\"\"\"  
+\"\"\"
+**End of Meeting Transcript**
+---
 """
-            agent = initialize_agent(jira_tools,Llm,agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION)
-            
-            response=agent.run(prompt)
-            db=SessionLocal()
-            meeting=db.query(Meeting).filter(Meeting.meeting_id==item.meeting_id).first()
-            meeting.tasks=json.loads(response)
-            db.commit()
-            db.close()
-        else:
-            print("API_KEYS not found")
+                config = {"configurable": {"thread_id": f"meeting_{str(uuid4())}","__api_keys":keys,"project":project,"system_message":prompt}}
+                chain=graph.invoke({"messages":[prompt2]},config=config)
+                if len(chain['messages']) > 1:
+                    response=chain['messages'][-1]
+                    if len(response.content) > 1:
+                        meeting.tasks=json.loads(response.content)
+                        db.commit()
+                    else:
+                        print("No tasks found")
+            else:
+                print("API_KEYS not found")
+        except Exception as e:
+            print("Error while making tasks from meeting: ",e)
+        try:
+        
+            prompt=f"""Give summary of this meeting:
+    ---
+    **Meeting Transcript:**  
+    \"\"\"  
+    {item.caption}
+    \"\"\"
+    **End of Meeting Transcript**
+    ---
+    """
+            response = Llm.invoke(prompt)
+            if len(response.content)>1:
+                meeting.summary=response.content
+                db.commit()
+        except Exception as e:
+            print("Error while generating summary: ",e)
     except Exception as e:
-        print("Error while making tasks from meeting: ",e)
+        print("Something went wrong while adding meeting to DB: ",e)
+    finally:
+        db.close()

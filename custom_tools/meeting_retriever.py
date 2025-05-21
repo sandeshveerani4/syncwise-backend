@@ -21,7 +21,7 @@ def format_meeting_list(meetings: list[Meeting]) -> str:
         if 'state' in m.bot_data:
             bot_status=m.bot_data['state']
         entries.append(
-            {'meeting_id':m.meeting_id,'name':m.name,'created':created,'ended':ended,'attendees':m.attendees,'bot_status':bot_status,'tasks':m.tasks}
+            {'meeting_id':m.meeting_id,'name':m.name,'created':created,'ended':ended,'attendees':m.attendees,'bot_status':bot_status,'tasks':m.tasks,'summary':m.summary}
         )
     return json.dumps(entries)
 
