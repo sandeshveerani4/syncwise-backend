@@ -2,7 +2,7 @@ from langchain.chat_models import init_chat_model
 from langchain.prompts import ChatPromptTemplate,MessagesPlaceholder
 from tools import tools
 
-Llm = init_chat_model("meta-llama/llama-4-scout-17b-16e-instruct",model_provider="groq",streaming=True,temperature=0.35)
+Llm = init_chat_model("meta-llama/llama-4-scout-17b-16e-instruct",model_provider="groq",streaming=True,temperature=0)
 
 
 prompt_template = ChatPromptTemplate(
