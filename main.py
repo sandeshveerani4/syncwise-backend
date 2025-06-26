@@ -1,15 +1,17 @@
 from dotenv import load_dotenv
+from langchain_core.runnables import RunnableConfig
+
+from custom_tools.github_api_wrapper import GitHubAPIWrapper
 load_dotenv()
 
-from fastapi import FastAPI,WebSocket,Depends,WebSocketException,status,HTTPException
+from fastapi import FastAPI,WebSocket,Depends,WebSocketException,status,HTTPException,BackgroundTasks
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from graph import graph,generate_system
-from fastapi import BackgroundTasks, FastAPI
 from meetings import Item,add_meeting_to_db
 from langchain.load.dump import dumps
 from database import get_db
-from models import ChatToken,Meeting,TranscriptSegment,WebhookPayload
+from models import ChatToken,Meeting,WebhookPayload
 from typing import List
 import httpx
 import os
@@ -33,10 +35,13 @@ async def websocket_endpoint(websocket: WebSocket,user_id:str, thread_id: str,db
     token=db.query(ChatToken).filter(ChatToken.userId==user_id,ChatToken.sessionToken==thread_id).first()
     if token is None:
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION,reason="Token invalid")
-    
+
     keys,project=get_api_keys(user_id,db)
-    
-    config = {"configurable": {"thread_id": thread_id,"__api_keys":keys,"project":project,"system_message":generate_system(keys,project)}}
+
+    config:RunnableConfig = {"configurable": {"thread_id": thread_id,"__api_keys":keys,"project":project,"system_message":generate_system(keys,project)}}
+    if keys.GITHUB_REPOSITORY is not None:
+        with open(os.environ['GITHUB_APP_PRIVATE_FILE']) as f:
+            config['configurable']['github']=GitHubAPIWrapper(github_app_private_key=f.read(),github_repository=keys.GITHUB_REPOSITORY)
     await websocket.accept()
     while True:
         data = await websocket.receive_text()
@@ -67,7 +72,7 @@ async def add_meeting_transcript(payload:WebhookPayload,background_tasks: Backgr
         if resp.status_code != 200:
             raise HTTPException(resp.status_code, detail=f"Failed to fetch transcript: {resp.text}")
 
-        transcript:List[TranscriptSegment] = resp.json()
+        transcript:List = resp.json()
         final_captions=""
         if len(transcript)>0:
             for chunk in transcript:

@@ -1,3 +1,4 @@
+from socket import fromfd
 from custom_tools.jira_tool import JiraToolkit
 from custom_tools.slack_tool import SlackToolkit
 from custom_tools.github_tool import GitHubToolkit
@@ -23,7 +24,7 @@ except Exception as error:
 
 try:
     with open(os.environ['GITHUB_APP_PRIVATE_FILE']) as f:
-        github_toolkit = GitHubToolkit.from_file(github_app_private_key=f.read())
+        github_toolkit = GitHubToolkit.from_file()
         github_tools = github_toolkit.get_tools()
         tools.extend(github_tools)
 except Exception as error:

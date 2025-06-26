@@ -11,7 +11,11 @@ from models import ApiKeys,Project
 store=InMemorySaver()
 
 def call_model(state: MessagesState,config:RunnableConfig):
-    system_message=config['configurable'].get('system_message')
+    configurable=config.get('configurable')
+    if configurable:
+        system_message=configurable.get('system_message')
+    else:
+        system_message=""
     response = llm.invoke({"messages": state["messages"],"system_message":system_message})
     return {"messages": [response]}
 
@@ -34,7 +38,7 @@ workflow.add_node("tools", tool_node)
 workflow.add_edge(START, "agent")
 workflow.add_conditional_edges("agent", should_continue, ["tools", END])
 workflow.add_edge("tools", "agent")
-graph =workflow.compile(store=store)
+graph =workflow.compile(checkpointer=store)
 
 def generate_system(api_keys:ApiKeys,project:Project):
     return f"""Currently it's {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\nYou are SyncWise-AI for the project {project.name} which has description: {project.description}, an expert assistant embedded in a LangGraph workflow.
@@ -50,9 +54,11 @@ def generate_system(api_keys:ApiKeys,project:Project):
         For everything else, respond as a normal conversational AI.
 
         If it's unclear which system to use, ask the user to clarify.
-        
+
         When writing code or file contents, use markdown code blocks with triple backticks and specify the language or file format immediately after the opening backticks (e.g., ```html).
-    
+
     Some configurations:
         Jira Project key: `{api_keys.JIRA_PROJECT}`
-        GitHub Repository: `{api_keys.GITHUB_REPOSITORY}`"""
+        """
+
+# GitHub Repository: `{api_keys.GITHUB_REPOSITORY}`

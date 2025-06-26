@@ -25,8 +25,6 @@ def login(token:str) -> WebClient:
         client = WebClient(token=token)
         logger.info("slack login success")
         return client
-    else:
-        print("Here",token)
 
 
 UTC_FORMAT = "%Y-%m-%dT%H:%M:%S%z"

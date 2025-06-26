@@ -119,15 +119,15 @@ class Meeting(Base):
     project = relationship("Project", back_populates="meetings")
 
 class ApiKeys(BaseModel):
-    user_id:str=None
-    project_id:str=None
+    user_id:Optional[str]=None
+    project_id:Optional[str]=None
     JIRA_PROJECT:Optional[str]=None
     JIRA_API_TOKEN: Optional[str]=None
     JIRA_USERNAME:Optional[str]=None
     JIRA_INSTANCE_URL:Optional[str]=None
     GITHUB_REPOSITORY:Optional[str]=None
     SLACK_USER_TOKEN:Optional[str]=None
-    CALENDAR_TOKEN:Dict[str,str]=None
+    CALENDAR_TOKEN:Optional[Dict[str,str]]=None
 
 class DataModel(BaseModel):
     new_state: str

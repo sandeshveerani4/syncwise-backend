@@ -6,7 +6,7 @@ from langchain_core.tools import BaseTool
 from langchain_core.tools.base import BaseToolkit
 from pydantic import BaseModel, Field
 
-from langchain_community.tools.github.prompt import (
+from custom_tools.github_prompts import (
     COMMENT_ON_ISSUE_PROMPT,
     CREATE_BRANCH_PROMPT,
     CREATE_FILE_PROMPT,
@@ -24,16 +24,15 @@ from langchain_community.tools.github.prompt import (
     LIST_PRS_PROMPT,
     LIST_PULL_REQUEST_FILES,
     OVERVIEW_EXISTING_FILES_BOT_BRANCH,
-    OVERVIEW_EXISTING_FILES_IN_MAIN,
+    OVERVIEW_EXISTING_FILES_IN_BRANCH,
     READ_FILE_PROMPT,
     SEARCH_CODE_PROMPT,
     SEARCH_ISSUES_AND_PRS_PROMPT,
     SET_ACTIVE_BRANCH_PROMPT,
     UPDATE_FILE_PROMPT,
 )
-from langchain_community.tools.github.tool import GitHubAction
-from langchain_community.utilities.github import GitHubAPIWrapper
 
+from custom_tools.github_api_wrapper import GitHubAPIWrapper
 
 class NoInput(BaseModel):
     """Schema for operations that do not require any input."""
@@ -171,7 +170,6 @@ class GitHubAction(BaseTool):
     """Tool for interacting with the GitHub API."""
 
     api_wrapper: GitHubAPIWrapper = None
-    private_key:str=""
     mode: str
     name: str = ""
     description: str = ""
@@ -184,7 +182,7 @@ class GitHubAction(BaseTool):
         **kwargs: Any,
     ) -> str:
         """Use the GitHub API to run an operation."""
-        self.api_wrapper=GitHubAPIWrapper(github_app_private_key=self.private_key,github_repository=config['configurable'].get('__api_keys').GITHUB_REPOSITORY)
+        self.api_wrapper=config['configurable']['github']
         if not instructions or instructions == "{}":
             # Catch other forms of empty input that GPT-4 likes to send.
             instructions = ""
@@ -338,7 +336,7 @@ class GitHubToolkit(BaseToolkit):
 
     @classmethod
     def from_file(
-        cls, github_app_private_key: str, include_release_tools: bool = False
+        cls, include_release_tools: bool = False
     ) -> "GitHubToolkit":
         """Create a GitHubToolkit from a GitHubAPIWrapper.
 
@@ -424,9 +422,9 @@ class GitHubToolkit(BaseToolkit):
                 "args_schema": DeleteFile,
             },
             {
-                "mode": "list_files_in_main_branch",
-                "name": "Overview of existing files in Main branch",
-                "description": OVERVIEW_EXISTING_FILES_IN_MAIN,
+                "mode": "list_files",
+                "name": "Overview of existing files in branch",
+                "description": OVERVIEW_EXISTING_FILES_IN_BRANCH,
                 "args_schema": NoInput,
             },
             {
@@ -506,7 +504,6 @@ class GitHubToolkit(BaseToolkit):
                 name=action["mode"],
                 description=action["description"],
                 mode=action["mode"],
-                private_key=github_app_private_key,
                 args_schema=action.get("args_schema", None),
             )
             for action in operations

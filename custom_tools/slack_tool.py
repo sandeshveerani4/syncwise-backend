@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, List
 
 from langchain_core.tools import BaseTool
 from langchain_core.tools.base import BaseToolkit
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict
 
 from custom_tools.slack.get_channel import SlackGetChannel
 from custom_tools.slack.get_message import SlackGetMessage
@@ -95,7 +95,7 @@ class SlackToolkit(BaseToolkit):
             The #general channel was created on timestamp 1671043305.
     """  # noqa: E501
     # client: WebClient
-    
+
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
     )
