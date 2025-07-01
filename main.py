@@ -45,7 +45,7 @@ async def websocket_endpoint(websocket: WebSocket,user_id:str, thread_id: str,db
     await websocket.accept()
     while True:
         data = await websocket.receive_text()
-        async for event in graph.astream({"messages": [data]}, config=config, stream_mode="messages"):
+        for event in graph.stream({"messages": [data]}, config=config, stream_mode="messages"):
             await websocket.send_text(dumps(event, ensure_ascii=False))
         await websocket.close()
         return

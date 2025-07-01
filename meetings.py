@@ -20,7 +20,7 @@ class Item(BaseModel):
 def add_meeting_to_db(item:Item):
     pinecone_check_index(pc)
     index = pc.Index(os.environ['PINECONE_VECTOR_NAME'])
-    
+
     vector_store = PineconeVectorStore(index=index, embedding=embeddings)
 
     doc = Document(page_content=item.caption,
@@ -34,7 +34,7 @@ def add_meeting_to_db(item:Item):
     length_function=len,)
     new_chunks = text_splitter.split_documents([doc])
     vector_store.add_documents(new_chunks)
-    
+
     db=SessionLocal()
     try:
         meeting=db.query(Meeting).filter(Meeting.meeting_id==item.meeting_id).first()
@@ -52,8 +52,8 @@ After you successfully create action items, reply exactly their json response co
 If you cannot create action items, reply exactly `[]`
 """
                 prompt2=f"""---
-**Meeting Transcript:**  
-\"\"\"  
+**Meeting Transcript:**
+\"\"\"
 {item.caption}
 \"\"\"
 **End of Meeting Transcript**
@@ -73,11 +73,11 @@ If you cannot create action items, reply exactly `[]`
         except Exception as e:
             print("Error while making tasks from meeting: ",e)
         try:
-        
+
             prompt=f"""Give summary of this meeting:
     ---
-    **Meeting Transcript:**  
-    \"\"\"  
+    **Meeting Transcript:**
+    \"\"\"
     {item.caption}
     \"\"\"
     **End of Meeting Transcript**

@@ -80,17 +80,17 @@ def get_api_keys(user_id:str,db:Session):
     if user is None:
         raise WebSocketException(status.WS_1008_POLICY_VIOLATION,"User not found")
     keys.user_id=user_id
-    
+
     project=db.query(Project).filter(Project.id==user.projectId).first()
     if project is None:
         raise WebSocketException(status.WS_1008_POLICY_VIOLATION,"Project not found")
     keys.project_id=project.id
-    
+
     if project.githubRepo is not None:
         keys.GITHUB_REPOSITORY=project.githubRepo
-    
+
     apikeys=db.query(ApiKey).filter(ApiKey.projectId==project.id).all()
-    
+
     for key in apikeys:
         try:
             if key.service=='slack':
@@ -103,5 +103,5 @@ def get_api_keys(user_id:str,db:Session):
             elif key.service == 'calendar':
                 keys.CALENDAR_TOKEN=json.loads(key.key)
         except Exception as e:
-            print(e)
+            print("Error",e)
     return (keys,project)

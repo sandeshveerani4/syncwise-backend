@@ -1,16 +1,25 @@
 from langgraph.prebuilt import ToolNode
 from langgraph.graph import StateGraph, START, END,MessagesState
 from langchain_core.runnables.config import RunnableConfig
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.store.base import BaseStore
 from llm import llm
 from tools import tools
 from typing import TypedDict
 from datetime import datetime,timezone
 from models import ApiKeys,Project
+from langgraph.store.postgres import PostgresStore
+from langgraph.checkpoint.postgres import PostgresSaver
+import os
+from contextlib import ExitStack
 
-store=InMemorySaver()
+# store=InMemorySaver()
+_exit_stack = ExitStack()
+store= _exit_stack.enter_context(PostgresStore.from_conn_string(os.environ['DATABASE_URI']))
+checkpointer =_exit_stack.enter_context(PostgresSaver.from_conn_string(os.environ['DATABASE_URI']))
 
-def call_model(state: MessagesState,config:RunnableConfig):
+# store.setup()
+# checkpointer.setup()
+def call_model(state: MessagesState,config:RunnableConfig,*,store: BaseStore):
     configurable=config.get('configurable')
     if configurable:
         system_message=configurable.get('system_message')
@@ -38,7 +47,7 @@ workflow.add_node("tools", tool_node)
 workflow.add_edge(START, "agent")
 workflow.add_conditional_edges("agent", should_continue, ["tools", END])
 workflow.add_edge("tools", "agent")
-graph =workflow.compile(checkpointer=store)
+graph =workflow.compile(checkpointer=checkpointer,store=store)
 
 def generate_system(api_keys:ApiKeys,project:Project):
     return f"""Currently it's {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\nYou are SyncWise-AI for the project {project.name} which has description: {project.description}, an expert assistant embedded in a LangGraph workflow.

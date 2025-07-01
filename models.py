@@ -1,11 +1,10 @@
-from sqlalchemy import Column, String,JSON,ARRAY,DateTime,Boolean,ForeignKey,Integer
+from sqlalchemy import Column, String,JSON,DateTime,Boolean,ForeignKey,Integer
 from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime,timezone
 from sqlalchemy.ext.declarative import declarative_base
-from pydantic import BaseModel
-from typing import Optional,Dict
 from pydantic import BaseModel,Field
+from typing import Optional,Dict
 
 Base  = declarative_base()
 
